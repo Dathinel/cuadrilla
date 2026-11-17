@@ -1,0 +1,38 @@
+{
+  "modelos": {
+    "codex": ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
+    "agy": ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-3.8-flash-high", "gemini-4-argon-low", "gemini-4-argon-medium", "gemini-4-argon-high", "claude-sonnet-5-5-medium", "claude-opus-5-5-medium", "gpt-oss-120b-medium"],
+    "devin": ["swe-2-high", "swe-2-medium", "swe-2-max", "swe-2-flash-high", "swe-2-flash-medium", "swe-2-flash-max"]
+  },
+  "pago": { "devin": [] },
+  "rutas_equivalentes": [],
+  "niveles": {
+    "bajo": {
+      "codex": { "modelo": "gpt-6-luna", "esfuerzo": "low" },
+      "agy": { "modelo": "gemini-3.8-flash-low" },
+      "devin": { "modelo": "swe-2-flash-high" }
+    },
+    "medio": {
+      "codex": { "modelo": "gpt-6.1-sol", "esfuerzo": "medium" },
+      "agy": { "modelo": "gemini-3.8-flash-high" },
+      "devin": { "modelo": "swe-2-high" }
+    },
+    "alto": {
+      "codex": { "modelo": "gpt-6-astra", "esfuerzo": "high" },
+      "agy": { "modelo": "gemini-4-argon-high" },
+      "devin": { "modelo": "swe-2-high" }
+    }
+  },
+  "precios": {
+    "gpt-6-luna": [0.1, 0.5],
+    "gpt-6-sol": [2, 10],
+    "gpt-6-astra": [10, 50],
+    "gpt-6-sol-high": [2, 10],
+    "claude-sonnet-5-5-medium": [2, 10],
+    "claude-opus-5-5-medium": [4, 20]
+  },
+  "limites": { "encargo_min": 90, "inactivo_min": 20 },
+  "limite_uso": { "activo": false, "horas": 5, "encargos": { "codex": 0, "agy": 0, "devin": 0 }, "tokens": { "codex": 0, "agy": 0, "devin": 0 } },
+  "worktrees": { "max_por_agente": 3 },
+  "puestos": { "codex": 3, "agy": 4, "devin": 4 }
+}

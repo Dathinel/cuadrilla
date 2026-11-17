@@ -1,0 +1,21 @@
+# Datos de la instalación: configuración, exclusiones, encargos y trabajos. Es personal.
+datos/*
+!datos/mesa.ejemplo.json
+
+# Copias de versiones anteriores, historial de encargos y capturas de trabajo.
+anteriores/
+docs/historial/
+# Diagnóstico y descripción de una instalación concreta, y capturas con datos reales.
+docs/interno/
+
+# Restos de ejecución.
+*.log
+*.pid
+*.tmp.*
+
+# Instrucciones de los otros CLI, generadas por la v1 (ya no se usan).
+/AGENTS.md
+/GEMINI.md
+
+# Worktrees de la propia mesa.
+.claude/worktrees/
