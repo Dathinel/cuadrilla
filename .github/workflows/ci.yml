@@ -15,4 +15,7 @@ jobs:
         shell: cmd
         env:
           MESA_SIN_PAUSA: '1'
+          # El TEMP del corredor es una ruta 8.3 (RUNNER~1) y git devuelve la larga: las rutas esperadas no casarían.
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: Probar.bat
