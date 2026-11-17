@@ -342,7 +342,7 @@ Start-Sleep -Seconds 300
   Caso 'agy -Lectura puede leer prompt.txt' '--add-dir <carpeta del trabajo>' ($argsAgy -join ' ') ([Array]::IndexOf($argsAgy, '--add-dir') -ge 0 -and $argsAgy[[Array]::IndexOf($argsAgy, '--add-dir') + 1] -like '*trabajos*')
   $r = Delegar normal @('-A', 'agy', '-Encargo', (Join-Path $casos 'lee2.md'), '-Dir', $repo, '-Lectura')
   Caso 'el mismo .md ya hecho se repite con -Lectura' 'salida 0 (no hay worktree que proteger)' "codigo=$($r.codigo), texto=$($r.texto.Trim())" ($r.codigo -eq 0)
-  $r = Delegar normal @('-A', 'codex', '-Encargo', (Join-Path $casos 'lee.md'), '-Dir', ((Split-Path -Qualifier $repo) + ''), '-Lectura')
+  $r = Delegar normal @('-A', 'codex', '-Encargo', (Join-Path $casos 'lee.md'), '-Dir', ((Split-Path -Qualifier $repo) + '\'), '-Lectura')
   Caso 'una raíz de unidad como -Dir se rechaza' '3 con «raíz de unidad»' "codigo=$($r.codigo), texto=$($r.texto.Trim())" ($r.codigo -eq 3 -and $r.texto -match 'raíz de unidad')
   # Mesa-EscribirJson con otro lector abierto (como ReadAllText de estado): File.Replace reintenta en vez de morir.
   $js = Join-Path $casos 'ocupado.json'; Mesa-EscribirJson $js @{ n = 1 }
