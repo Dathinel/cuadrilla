@@ -1,7 +1,7 @@
 <h1 align="center">Cuadrilla</h1>
 
 <p align="center">
-  Claude dirige; ChatGPT (CLI <code>codex</code>), Gemini (CLI <code>agy</code>, Antigravity) y Devin (CLI <code>devin</code>) hacen lo mecánico.<br>
+  Claude dirige; ChatGPT (CLI <code>codex</code>), Gemini (CLI <code>agy</code>, Antigravity), Devin (CLI <code>devin</code>) y Claude (CLI <code>claude</code>, con su propia suscripción) hacen lo mecánico.<br>
   Una orden lanza el encargo en su propio worktree, espera y termina. Sin procesos residentes: 0 % de CPU en reposo.
 </p>
 

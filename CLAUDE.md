@@ -1,6 +1,6 @@
 # Cuadrilla
 
-Una orden (`herramientas\cuadrilla.ps1`) que delega un encargo a ChatGPT (CLI `codex`), Gemini (CLI `agy`) o Devin (CLI `devin`), espera y termina. Claude dirige y revisa; no hay proceso residente. Cómo funciona: `docs/cuadrilla-ligera.md`; decisiones: `docs/decisiones.md`.
+Una orden (`herramientas\cuadrilla.ps1`) que delega un encargo a ChatGPT (CLI `codex`), Gemini (CLI `agy`), Devin (CLI `devin`) o Claude (CLI `claude`), espera y termina. Claude dirige y revisa; no hay proceso residente. Cómo funciona: `docs/cuadrilla-ligera.md`; decisiones: `docs/decisiones.md`.
 
 ## Dónde está cada cosa
 - `herramientas\`: `cuadrilla.ps1` (`delegar`, `estado`, `cortar`, `cuota`), `proceso.ps1` (Job con KILL_ON_JOB_CLOSE), `comun.ps1`, `worktrees.ps1`, `git-bloqueo\` (hook que impide escribir refs en el CLI), `instalar.ps1`.
