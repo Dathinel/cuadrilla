@@ -1,7 +1,7 @@
 # Cómo funciona Cuadrilla
 
 ## Qué es
-Claude dirige; codex (`codex exec`), agy (`agy -p`) y devin (`devin -p`) hacen lo mecánico. Claude escribe el encargo en un .md y lo lanza con su Bash o su PowerShell en segundo plano (`run_in_background`), y Claude Code le avisa al terminar: no hay sondeo, hook, cola ni panel residente. Cada encargo deja `datos\trabajos\<id>\` con encargo.md, prompt.txt, log.jsonl, final.txt y `resultado.json`, este escrito de forma atómica. En reposo no queda ningún proceso: 0 % de CPU.
+Claude dirige; codex (`codex exec`), agy (`agy -p`), devin (`devin -p`) y claude (`claude -p`) hacen lo mecánico. Claude escribe el encargo en un .md y lo lanza con su Bash o su PowerShell en segundo plano (`run_in_background`), y Claude Code le avisa al terminar: no hay sondeo, hook, cola ni panel residente. Cada encargo deja `datos\trabajos\<id>\` con encargo.md, prompt.txt, log.jsonl, final.txt y `resultado.json`, este escrito de forma atómica. En reposo no queda ningún proceso: 0 % de CPU.
 
 Sustituye a una primera versión con hilos, supervisor y panel siempre abiertos, que gastaba un 34 % y un 12-15 % de un núcleo sin trabajo y unas 13 000 líneas de código (D-001).
 

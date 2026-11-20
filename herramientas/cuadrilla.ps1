@@ -1,6 +1,6 @@
-﻿# Cuadrilla ligera: una orden que lanza un encargo a ChatGPT (CLI codex), Gemini (CLI agy) o Devin (CLI devin), espera y termina. Sin procesos residentes.
-#   cuadrilla.ps1 delegar -A chatgpt|gemini|devin -Encargo <md> -Dir <carpeta> [-Tarea t] [-Modelo m] [-Esfuerzo low|medium|high] [-Nivel bajo|medio|alto] [-Lectura] [-Sandbox [-Red]] [-Minutos n]
-#   Varios encargos a la vez por CLI: hasta puestos.<cli> de mesa.json (por defecto codex 3, agy 4, devin 4).
+﻿# Cuadrilla ligera: una orden que lanza un encargo a ChatGPT (CLI codex), Gemini (CLI agy), Devin (CLI devin) o Claude (CLI claude), espera y termina. Sin procesos residentes.
+#   cuadrilla.ps1 delegar -A chatgpt|gemini|devin|claude -Encargo <md> -Dir <carpeta> [-Tarea t] [-Modelo m] [-Esfuerzo low|medium|high] [-Nivel bajo|medio|alto] [-Lectura] [-Sandbox [-Red]] [-Minutos n]
+#   Varios encargos a la vez por CLI: hasta puestos.<cli> de mesa.json (por defecto codex 3, agy 4, devin 4, claude 2).
 #   -Nivel (o una línea «Nivel: alto» en el .md) elige modelo y esfuerzo según niveles.<nivel>.<cli> de mesa.json; -Modelo y -Esfuerzo mandan.
 #   Cada encargo deja una línea en datos\trabajos\uso.jsonl (modelo, duración, tokens, coste aproximado y cuota antes y después).
 #   cuadrilla.ps1 estado [<id>]        cuadrilla.ps1 cortar <id>        cuadrilla.ps1 cuota
@@ -8,7 +8,7 @@
 param(
   [Parameter(Position = 0, Mandatory = $true)][ValidateSet('delegar', 'estado', 'cortar', 'cuota')][string]$Comando,
   [Parameter(Position = 1)][string]$Id,
-  [ValidateSet('chatgpt', 'gemini', 'codex', 'agy', 'devin')][string]$A,
+  [ValidateSet('chatgpt', 'gemini', 'codex', 'agy', 'devin', 'claude')][string]$A,
   [string]$Encargo, [string]$Dir, [string]$Tarea, [string]$Modelo,
   [ValidateSet('low', 'medium', 'high')][string]$Esfuerzo = 'medium',
   [ValidateSet('bajo', 'medio', 'alto')][string]$Nivel,
@@ -24,7 +24,7 @@ $ejemplo = Mesa-LeerJson (Join-Path $Global:Mesa_Base 'datos\mesa.ejemplo.json')
 if ($cfg -and $ejemplo) { foreach ($k in $ejemplo.PSObject.Properties.Name) { if ($null -eq $cfg.$k) { $cfg | Add-Member -NotePropertyName $k -NotePropertyValue $ejemplo.$k } } }
 $utf8 = New-Object Text.UTF8Encoding $false
 # ChatGPT y Gemini son los nombres a la vista; por dentro siguen codex y agy (binarios, ramas, candados e historial).
-$nombres = @{ codex = 'ChatGPT'; agy = 'Gemini'; devin = 'Devin' }
+$nombres = @{ codex = 'ChatGPT'; agy = 'Gemini'; devin = 'Devin'; claude = 'Claude' }
 if ($A -eq 'chatgpt') { $A = 'codex' } elseif ($A -eq 'gemini') { $A = 'agy' }
 
 function Ruta-Cli($a) {
@@ -34,6 +34,15 @@ function Ruta-Cli($a) {
   if ($c) { return $c.Source }
   $exe = switch ($a) { 'agy' { Join-Path $env:LOCALAPPDATA 'agy\bin\agy.exe' } 'devin' { Join-Path $env:LOCALAPPDATA 'devin\cli\bin\devin.exe' } }
   if ($exe -and (Test-Path -LiteralPath $exe)) { return $exe }
+  # claude CLI nativo: instalación por versión en Roaming\Claude\claude-code\<versión>\<hash>\claude.exe; se coge la más nueva.
+  if ($a -eq 'claude') {
+    $base = Join-Path $env:APPDATA 'Claude\claude-code'
+    $exe = @(Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        Get-ChildItem -LiteralPath $_.FullName -Directory -ErrorAction SilentlyContinue |
+          ForEach-Object { Join-Path $_.FullName 'claude.exe' } | Where-Object { Test-Path -LiteralPath $_ }
+      } | Sort-Object -Descending | Select-Object -First 1)
+    if ($exe.Count -gt 0) { return $exe[0] }
+  }
 }
 function Resultados {
   @(Get-ChildItem -LiteralPath $trabajos -Directory -ErrorAction SilentlyContinue | ForEach-Object {
@@ -68,7 +77,8 @@ function Sin-Cuota($a, $todos, [bool]$pago = $false, $modelo = $null) {
 function Minutos($iso) { [int]((Get-Date) - [datetime]::Parse($iso)).TotalMinutes }
 
 # Lectura de cuota de un CLI sin gastar: agy da su tabla con «-p /usage»; codex, sus límites de 5 h y semana y los restablecimientos
-# que le quedan por «app-server» (account/rateLimits/read); devin no ofrece nada (auth status no trae saldo). Si falla, $null: nunca frena un encargo.
+# que le quedan por «app-server» (account/rateLimits/read); devin no ofrece nada (auth status no trae saldo) y claude tampoco
+# (su uso solo se ve en la sesión interactiva). Si falla, $null: nunca frena un encargo.
 function Leer-Cuota($a, $archivo) {
   try {
     if ($a -eq 'agy') {
@@ -108,7 +118,7 @@ switch ($Comando) {
     Refrescar-Interrumpidos
     $todos = Resultados; $uso = Uso-Leer
     if ($Id) { $r = $todos | Where-Object id -eq $Id; if (-not $r) { throw "No existe el encargo $Id." }; $r | ConvertTo-Json -Depth 6; return }
-    foreach ($a in 'codex', 'agy', 'devin') {
+    foreach ($a in 'codex', 'agy', 'devin', 'claude') {
       if (-not (Ruta-Cli $a)) { "$($nombres[$a]) ($a): no instalado"; continue }
       $vivos = @($todos | Where-Object { $_.agente -eq $a -and $_.estado -eq 'ejecutando' })
       $lista = @($vivos | ForEach-Object {
@@ -149,12 +159,12 @@ switch ($Comando) {
     return
   }
   'cuota' {
-    foreach ($a in 'codex', 'agy', 'devin') {
+    foreach ($a in 'codex', 'agy', 'devin', 'claude') {
       $u = Resultados | Where-Object { $_.agente -eq $a -and $_.causa -eq 'sin-cuota' } | Select-Object -Last 1
       if ($u) { "$($nombres[$a]) ($a): última señal sin cuota $($u.fin) (hasta $($u.hasta))" } else { "$($nombres[$a]) ($a): sin señal de falta de cuota" }
     }
     $uso = Uso-Leer
-    foreach ($a in 'codex', 'agy', 'devin') { "$($nombres[$a]) ($a):"; Uso-Linea $a $uso }
+    foreach ($a in 'codex', 'agy', 'devin', 'claude') { "$($nombres[$a]) ($a):"; Uso-Linea $a $uso }
     $reg = Join-Path $trabajos 'cuota-codex.txt'
     if (Test-Path -LiteralPath $reg) { 'Señales sin cuota anotadas de ChatGPT (últimas 5):'; Get-Content -LiteralPath $reg -Encoding UTF8 -Tail 5 }
     . "$PSScriptRoot\proceso.ps1"
@@ -177,9 +187,9 @@ if (-not $A -or -not $Encargo -or -not $Dir) { NoLanzado 'faltan -A, -Encargo o 
 foreach ($p in $Encargo, $Dir) { if ($p -match '[$(`]') { NoLanzado "la ruta lleva `$, ( o acento grave: $p" } }
 if (-not (Test-Path -LiteralPath $Encargo -PathType Leaf)) { NoLanzado "no existe el encargo $Encargo" }
 if (-not (Test-Path -LiteralPath $Dir -PathType Container)) { NoLanzado "no existe la carpeta $Dir" }
-$Encargo = (Resolve-Path -LiteralPath $Encargo).Path; $Dir = (Resolve-Path -LiteralPath $Dir).Path
 if ($Dir -match '^[A-Za-z]:\\?$') { NoLanzado "no se delega una raíz de unidad: $Dir" }
-$Dir = $Dir.TrimEnd('\')
+$Encargo = (Resolve-Path -LiteralPath $Encargo).Path; $Dir = (Resolve-Path -LiteralPath $Dir).Path.TrimEnd('\')
+if ($Dir -eq [IO.Path]::GetPathRoot($Dir).TrimEnd('\')) { NoLanzado "no se delega una raíz de unidad: $Dir" }
 foreach ($p in $Encargo, $Dir) { if ($p -match $Global:Mesa_Excluidos) { NoLanzado 'ruta excluida (datos\excluidos.txt)' } }
 $cli = Ruta-Cli $A
 if (-not $cli) { NoLanzado "$A no está en el PATH" }
@@ -327,6 +337,15 @@ switch ($A) {
     $argumentos = @('-p', '--prompt-file', $promptTxt, '--model', $Modelo, '--permission-mode', $(if ($Lectura) { 'auto' } elseif ($Sandbox) { 'accept-edits' } else { 'dangerous' }), '--respect-workspace-trust', 'false')
     $entrada = ''
   }
+  'claude' {
+    # Como agy: el encargo va por ruta (un -p con el texto entero pasaba del tope de línea de ordenes) y la respuesta llega por stream-json.
+    # --no-session-persistence es su --ephemeral: varias instancias a la vez sin sesiones en disco. --add-dir deja leer prompt.txt, fuera de $Dir.
+    $argumentos = @('-p', "Lee el encargo completo en el archivo UTF-8 $promptTxt y ejecuta sus instrucciones.", '--model', $Modelo, '--effort', $Esfuerzo, '--output-format', 'stream-json', '--verbose', '--no-session-persistence', '--add-dir', $carpeta)
+    if ($Lectura) { $argumentos += @('--permission-mode', 'plan') }
+    elseif (-not $Sandbox) { $argumentos += '--dangerously-skip-permissions' }
+    else { $argumentos += @('--permission-mode', 'acceptEdits') }
+    $entrada = ''
+  }
 }
 $yo = Get-Process -Id $PID
 $resultado = [ordered]@{
@@ -373,6 +392,8 @@ if ($A -eq 'devin') {
     $agyStatus = $res.status
     $texto = if ($res.response -is [string]) { $res.response } elseif ($ev.result -is [string]) { $ev.result } else { '' }
     if ($res.usage) { $u = $res.usage; $tokens = @{ entrada = [int64]$u.input_tokens; salida = [int64]$u.output_tokens; total = [int64]$u.total_tokens } }
+    # claude trae el coste medido en total_cost_usd: mejor que estimarlo por precios.
+    if ($ev.total_cost_usd) { $usdCli = [double]$ev.total_cost_usd }
   }
 }
 if ($tokens -and -not $tokens.total) { $tokens.total = $tokens.entrada + $tokens.salida }
@@ -410,7 +431,7 @@ $candado.Dispose(); $candadoTarea.Dispose()
 # Registro de uso, ya con el puesto libre. Coste aproximado: tokens por precios.<modelo> de mesa.json (USD por millón de entrada y de salida);
 # en ChatGPT y Gemini es el equivalente de API (van por suscripción) y Devin no informa de tokens, así que ahí queda vacío.
 $precio = @($cfg.precios.$Modelo)
-$usd = if ($tokens -and $precio.Count -eq 2) { [Math]::Round(($tokens.entrada * [double]$precio[0] + $tokens.salida * [double]$precio[1]) / 1e6, 4) }
+$usd = if ($usdCli) { [Math]::Round($usdCli, 4) } elseif ($tokens -and $precio.Count -eq 2) { [Math]::Round(($tokens.entrada * [double]$precio[0] + $tokens.salida * [double]$precio[1]) / 1e6, 4) }
 $linea = [ordered]@{
   id = $id; agente = $A; modelo = $Modelo; esfuerzo = $Esfuerzo; nivel = $Nivel; pago = $pago; estado = $estado; causa = $causa; inicio = $resultado.inicio; fin = $resultado.fin
   segundos = [int]$reloj.Elapsed.TotalSeconds; tokens = $(if ($tokens) { $tokens.total }); tokens_entrada = $(if ($tokens) { $tokens.entrada }); tokens_salida = $(if ($tokens) { $tokens.salida }); usd = $usd

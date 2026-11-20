@@ -49,7 +49,8 @@ try {
 
   # --- Hecho hoy con tokens ---
   $hoy = Get-Date
-  Trabajo 'codex-t1-20260101-100000' 'codex' 'tarea-uno' 'hecho' $hoy.AddHours(-2).ToString('o') $hoy.AddHours(-1).ToString('o') | Out-Null
+  $ini1 = $hoy.AddHours(-2); if ($ini1.Date -ne $hoy.Date) { $ini1 = $hoy.Date.AddMinutes(1) }
+  Trabajo 'codex-t1-20260101-100000' 'codex' 'tarea-uno' 'hecho' $ini1.ToString('o') $hoy.AddHours(-1).ToString('o') | Out-Null
   $e = Obtener-OficinaEstado
   $cod = $e.agentes | Where-Object { $_.id -eq 'codex' }
   Caso 'hecho: codex libre' 'esperando' $cod.estado ($cod.estado -eq 'esperando')

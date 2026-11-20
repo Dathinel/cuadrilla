@@ -127,8 +127,9 @@ function Obtener-OficinaEstado {
       try { $r = Oficina-LeerJson (Join-Path $carpeta.FullName 'resultado.json') } catch { $avisos += @{ fuente = $carpeta.Name; mensaje = 'resultado.json ilegible' }; continue }
       if (-not $r -or -not $r.agente -or $r.agente -isnot [string] -or $r.agente -notmatch '^(codex|agy|claude)$') { continue }
       $inicio = $null; $fin = $null
-      try { if ($r.inicio -is [string]) { $inicio = [datetime]::Parse($r.inicio) } } catch {}
-      try { if ($r.fin -is [string]) { $fin = [datetime]::Parse($r.fin) } } catch {}
+      # En Windows PowerShell 5.1 ConvertFrom-Json ya entrega las fechas ISO como [datetime].
+      try { if ($r.inicio -is [string]) { $inicio = [datetime]::Parse($r.inicio) } elseif ($r.inicio -is [datetime]) { $inicio = $r.inicio } } catch {}
+      try { if ($r.fin -is [string]) { $fin = [datetime]::Parse($r.fin) } elseif ($r.fin -is [datetime]) { $fin = $r.fin } } catch {}
       $tokens = $null
       try { if ($r.tokens -and $null -ne $r.tokens.total) { $tokens = [long]$r.tokens.total; if ($tokens -lt 0 -or $tokens -gt 1e12) { $tokens = $null } } } catch { $tokens = $null }
       $estado = if ([string]$r.estado -in @('ejecutando', 'hecho', 'fallo', 'interrumpido', 'no-lanzado')) { [string]$r.estado } else { 'desconocido' }

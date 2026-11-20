@@ -132,5 +132,5 @@ function Mesa-SkillTexto { [IO.File]::ReadAllText((Join-Path $Global:Mesa_Base '
 
 function Mesa-ModeloPorDefecto($herramienta, $cfg) {
   if ($cfg -and $cfg.modelos -and $cfg.modelos.$herramienta -and $cfg.modelos.$herramienta.Count -gt 0) { return $cfg.modelos.$herramienta[0] }
-  switch ($herramienta) { 'codex' { 'gpt-6-luna' } 'agy' { 'gemini-3.8-flash-low' } 'devin' { 'swe-2-high' } }
+  switch ($herramienta) { 'codex' { 'gpt-6-luna' } 'agy' { 'gemini-3.8-flash-low' } 'devin' { 'swe-2-high' } 'claude' { 'sonnet' } }
 }

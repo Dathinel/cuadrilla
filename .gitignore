@@ -12,6 +12,7 @@ docs/interno/
 *.log
 *.pid
 *.tmp.*
+Microsoft/
 
 # Instrucciones de los otros CLI, generadas por la v1 (ya no se usan).
 /AGENTS.md

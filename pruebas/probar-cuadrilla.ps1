@@ -54,12 +54,13 @@ try {
   Copy-Item -LiteralPath (Join-Path $base 'herramientas\git-bloqueo') -Destination (Join-Path $h 'git-bloqueo') -Recurse
   New-Item -ItemType Directory -Force (Join-Path $raiz 'plantillas\cuadrilla') | Out-Null
   Copy-Item -LiteralPath (Join-Path $base 'plantillas\cuadrilla\SKILL.md') -Destination (Join-Path $raiz 'plantillas\cuadrilla')
-  [IO.File]::WriteAllText((Join-Path $datos 'mesa.json'), '{"modelos":{"codex":["modelo-falso","modelo-caro","modelo-otro"],"agy":["modelo-falso"],"devin":["swe-2-falso"]},"pago":{"devin":["claude-falso-de-pago"]},"niveles":{"bajo":{"codex":{"modelo":"modelo-falso","esfuerzo":"low"}},"alto":{"codex":{"modelo":"modelo-caro","esfuerzo":"high"},"devin":{"modelo":"claude-falso-de-pago"}}},"precios":{"modelo-falso":[1000000,2000000]},"limites":{"encargo_min":0.5,"inactivo_min":0.05},"worktrees":{"max_por_agente":3},"puestos":{"codex":2,"agy":2,"devin":2}}', $utf8)
+  [IO.File]::WriteAllText((Join-Path $datos 'mesa.json'), '{"modelos":{"codex":["modelo-falso","modelo-caro","modelo-otro"],"agy":["modelo-falso"],"devin":["swe-2-falso"],"claude":["sonnet-falso"]},"pago":{"devin":["claude-falso-de-pago"]},"niveles":{"bajo":{"codex":{"modelo":"modelo-falso","esfuerzo":"low"}},"alto":{"codex":{"modelo":"modelo-caro","esfuerzo":"high"},"devin":{"modelo":"claude-falso-de-pago"}}},"precios":{"modelo-falso":[1000000,2000000]},"limites":{"encargo_min":0.5,"inactivo_min":0.05},"worktrees":{"max_por_agente":3},"puestos":{"codex":2,"agy":2,"devin":2,"claude":2}}', $utf8)
   # Canario genérico: las zonas excluidas reales nunca se nombran, ni siquiera en pruebas.
   [IO.File]::WriteAllText((Join-Path $datos 'excluidos.txt'), "ZONA-PROHIBIDA`r`n", $utf8)
   # Solo los CLI falsos y lo imprescindible (git, powershell): nunca un CLI real.
   $gitDir = Split-Path -Parent (Get-Command git.exe).Source
-  $env:Path = "$bin;$gitDir;$env:SystemRoot\System32;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
+  $gitUsr = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (& git --exec-path))); $gitUsr = Join-Path $gitUsr 'usr\bin'
+  $env:Path = "$bin;$gitDir;$gitUsr;$env:SystemRoot\System32;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
   $env:MESA_DATOS = $datos; $env:MESA_TRABAJO = $casos; $env:LOCALAPPDATA = $raiz; $env:USERPROFILE = Join-Path $raiz 'perfil'
   . "$h\comun.ps1"
 
@@ -110,6 +111,12 @@ if ($cli -eq 'codex') {
       if ($modo -ne 'sin-final' -and $o -ge 0) { [IO.File]::WriteAllText($argumentos[$o + 1], 'respuesta final con acción', $u) }
     }
   }
+} elseif ($cli -eq 'claude') {
+  Evento @{ type = 'init'; session_id = 'x' }
+  switch ($modo) {
+    'claude-error' { Evento @{ type = 'result'; subtype = 'error_during_execution'; is_error = $true; result = 'usage limit reached'; usage = @{ input_tokens = 4; output_tokens = 2 } }; exit 1 }
+    default { Evento @{ type = 'result'; subtype = 'success'; is_error = $false; result = 'respuesta claude con acción'; total_cost_usd = 0.0123; usage = @{ input_tokens = 11; output_tokens = 9 } } }
+  }
 } else {
   Evento @{ event = 'init'; conversation_id = 'x' }
   switch ($modo) {
@@ -119,7 +126,7 @@ if ($cli -eq 'codex') {
   }
 }
 '@
-  foreach ($cli in @('codex', 'agy', 'devin')) { [IO.File]::WriteAllText((Join-Path $bin "$cli.ps1"), $falso, $bom) }
+  foreach ($cli in @('codex', 'agy', 'devin', 'claude')) { [IO.File]::WriteAllText((Join-Path $bin "$cli.ps1"), $falso, $bom) }
   $hijo = @'
 $nieto = Start-Process powershell.exe -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 300' -PassThru -WindowStyle Hidden
 $arbol = @((Get-Process -Id $PID), $nieto) | ForEach-Object { @{ id = $_.Id; inicio = $_.StartTime.ToUniversalTime().ToString('o'); nombre = $_.ProcessName } }
@@ -173,6 +180,17 @@ Start-Sleep -Seconds 300
   Caso 'devin: el nivel alto activa el modelo de pago' 'salida 0, claude-falso-de-pago y pago=true' "codigo=$($r.codigo), modelo=$($r.resultado.modelo), pago=$($r.resultado.pago)" ($r.codigo -eq 0 -and $r.resultado.modelo -eq 'claude-falso-de-pago' -and $r.resultado.pago -eq $true)
   $r = Delegar normal @('-A', 'devin', '-Encargo', (Encargo-Md 'devin4.md'), '-Dir', $carpeta, '-Modelo', 'swe-2-no-listado')
   Caso 'devin: modelo fuera de modelos.devin y de pago.devin se rechaza' '3 con «no está en mesa.json»' "codigo=$($r.codigo), texto=$($r.texto.Trim())" ($r.codigo -eq 3 -and $r.texto -match 'no está en mesa.json')
+  $r = Delegar normal @('-A', 'claude', '-Encargo', (Encargo-Md 'claude1.md'), '-Dir', $carpeta)
+  $argsClaude = @(Mesa-LeerJson (Join-Path $r.carpeta 'argumentos.json'))
+  Caso 'claude: stream-json con respuesta, coste y tokens del propio evento' 'salida 0, hecho, respuesta del result, 20 tokens, 0,0123 USD medidos' "codigo=$($r.codigo), estado=$($r.resultado.estado), respuesta=$($r.resultado.respuesta), tokens=$($r.resultado.tokens.total)" ($r.codigo -eq 0 -and $r.resultado.estado -eq 'hecho' -and $r.resultado.respuesta -eq 'respuesta claude con acción' -and $r.resultado.tokens.total -eq 20)
+  $uCl = @(Get-Content (Join-Path $datos 'trabajos\uso.jsonl') -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json }) | Where-Object { $_.id -eq $r.resultado.id } | Select-Object -Last 1
+  Caso 'claude: uso.jsonl con el coste de total_cost_usd' 'usd=0,0123' "usd=$($uCl.usd)" ($uCl.usd -eq 0.0123)
+  Caso 'claude: modelo, esfuerzo y sin permisos por defecto' '--model sonnet-falso, --effort medium, --dangerously-skip-permissions, --no-session-persistence' ($argsClaude -join ' ') ($argsClaude -contains 'sonnet-falso' -and $argsClaude -contains 'medium' -and $argsClaude -contains '--dangerously-skip-permissions' -and $argsClaude -contains '--no-session-persistence' -and $argsClaude -contains 'stream-json')
+  $r = Delegar normal @('-A', 'claude', '-Encargo', (Encargo-Md 'claude2.md'), '-Dir', $carpeta, '-Lectura')
+  $argsClaude = @(Mesa-LeerJson (Join-Path $r.carpeta 'argumentos.json'))
+  Caso 'claude -Lectura va en plan' '--permission-mode plan y --add-dir a la carpeta del trabajo' ($argsClaude -join ' ') ($r.codigo -eq 0 -and $argsClaude -contains 'plan' -and $argsClaude -notcontains '--dangerously-skip-permissions' -and ($argsClaude -join ' ') -match '--add-dir .+trabajos')
+  $r = Delegar claude-error @('-A', 'claude', '-Encargo', (Encargo-Md 'claude3.md'), '-Dir', $carpeta)
+  Caso 'claude con is_error da fallo con causa' 'fallo por límite' "codigo=$($r.codigo), causa=$($r.resultado.causa)" ($r.codigo -eq 1 -and $r.resultado.causa -eq 'sin-cuota')
   $r = Delegar cuota @('-A', 'codex', '-Encargo', (Encargo-Md 'cuatro.md'), '-Dir', $carpeta)
   $hasta = if ($r.resultado.hasta) { ([datetime]::Parse($r.resultado.hasta)).ToString('HH:mm') }
   Caso '«try again at 6:57 PM»' 'fallo, sin-cuota, hasta las 18:57' "codigo=$($r.codigo), estado=$($r.resultado.estado), causa=$($r.resultado.causa), hasta=$hasta" ($r.codigo -eq 1 -and $r.resultado.estado -eq 'fallo' -and $r.resultado.causa -eq 'sin-cuota' -and $hasta -eq '18:57')
@@ -368,7 +386,7 @@ Start-Sleep -Seconds 300
   $salidaInst = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$h\instalar.ps1" 2>&1 | Out-String
   $env:MESA_DATOS = $datos
   $n = Mesa-LeerJson (Join-Path $datosV1 'mesa.json')
-  Caso 'instalar normaliza mesa.json' 'solo las claves del ejemplo (y sus subclaves), con puestos, niveles, pago y el límite de uso apagado; conserva lo propio; añade inactivo_min=20; copia en mesa.v1.json' "claves=$($n.PSObject.Properties.Name -join ','), codex=$($n.modelos.codex), encargo=$($n.limites.encargo_min), inactivo=$($n.limites.inactivo_min), max=$($n.worktrees.max_por_agente); $($salidaInst.Trim())" (($n.PSObject.Properties.Name -join ',') -eq 'modelos,pago,rutas_equivalentes,niveles,precios,limites,limite_uso,worktrees,puestos' -and $n.limite_uso.activo -eq $false -and $n.niveles.alto.codex.modelo -eq 'gpt-6-astra' -and $n.puestos.devin -eq 4 -and $n.puestos.codex -eq 3 -and ($n.modelos.PSObject.Properties.Name -join ',') -eq 'codex,agy,devin' -and ($n.limites.PSObject.Properties.Name -join ',') -eq 'encargo_min,inactivo_min' -and $n.modelos.codex -eq 'mio' -and $n.limites.encargo_min -eq 45 -and $n.limites.inactivo_min -eq 20 -and $n.worktrees.max_por_agente -eq 2 -and (Test-Path (Join-Path $datosV1 'mesa.v1.json')) -and $salidaInst -match 'Normalizado')
+  Caso 'instalar normaliza mesa.json' 'solo las claves del ejemplo (y sus subclaves), con puestos, niveles, pago y el límite de uso apagado; conserva lo propio; añade inactivo_min=20; copia en mesa.v1.json' "claves=$($n.PSObject.Properties.Name -join ','), codex=$($n.modelos.codex), encargo=$($n.limites.encargo_min), inactivo=$($n.limites.inactivo_min), max=$($n.worktrees.max_por_agente); $($salidaInst.Trim())" (($n.PSObject.Properties.Name -join ',') -eq 'modelos,pago,rutas_equivalentes,niveles,precios,limites,limite_uso,worktrees,puestos' -and $n.limite_uso.activo -eq $false -and $n.niveles.alto.codex.modelo -eq 'gpt-6-astra' -and $n.puestos.devin -eq 4 -and $n.puestos.codex -eq 3 -and ($n.modelos.PSObject.Properties.Name -join ',') -eq 'codex,agy,devin,claude' -and $n.puestos.claude -eq 2 -and ($n.limites.PSObject.Properties.Name -join ',') -eq 'encargo_min,inactivo_min' -and $n.modelos.codex -eq 'mio' -and $n.limites.encargo_min -eq 45 -and $n.limites.inactivo_min -eq 20 -and $n.worktrees.max_por_agente -eq 2 -and (Test-Path (Join-Path $datosV1 'mesa.v1.json')) -and $salidaInst -match 'Normalizado')
 } catch {
   $script:fallos++; Write-Host "ERROR de la prueba: $($_.Exception.Message) $($_.InvocationInfo.PositionMessage)"
 } finally {
