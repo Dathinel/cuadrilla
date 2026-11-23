@@ -23,6 +23,7 @@ function Mesa-Ocultar([string]$Texto) {
   $s = $Texto -replace '(?i)(?:ghp_|github_pat_|sk-|AIza)[A-Za-z0-9_\-]+', '<OCULTO>'
   $s = $s -replace '(?i)(Bearer\s+)[^\s"'';,}]+', '$1<OCULTO>'
   $s = $s -replace '(?i)(X-[\w-]*Token\s*[=:]\s*)[^\s"'';,}]+', '$1<OCULTO>'
+  $s = $s -replace '(?i)("(?:api[_-]?key|password|secret|access[_-]?token|X-[\w-]*Token)"\s*:\s*)"(?:\\.|[^"\\])*"', '$1"<OCULTO>"'
   $s = $s -replace '(?i)((?:api[_-]?key|password|secret|access[_-]?token)\s*[=:]\s*["'']?)[^\s"'';,}]+', '$1<OCULTO>'
   $s = $s -replace ($Global:Mesa_Excluidos + '[^\s"'']*'), '<RUTA EXCLUIDA>'
   return $s
