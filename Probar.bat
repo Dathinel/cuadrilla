@@ -9,16 +9,22 @@ title Cuadrilla - pruebas
 set "P=%~dp0pruebas"
 set "PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 set FALLOS=0
+set EJECUTADAS=0
 for %%T in (probar-cuadrilla caos-procesos probar-oficina) do (
   if /i "%~1"=="" call :una %%T
   if /i "%~1"=="%%T" call :una %%T
 )
 echo.
+if "%EJECUTADAS%"=="0" (
+  echo Suite desconocida. Opciones: probar-cuadrilla, caos-procesos, probar-oficina.
+  exit /b 2
+)
 if "%FALLOS%"=="0" ( echo Todas las pruebas pasaron. ) else ( echo Fallaron %FALLOS% conjuntos de pruebas. )
 if not defined MESA_SIN_PAUSA pause
 exit /b %FALLOS%
 
 :una
+set /a EJECUTADAS+=1 >nul
 echo.
 echo === %1 ===
 "%PS%" -NoProfile -ExecutionPolicy Bypass -File "%P%\%1.ps1"
